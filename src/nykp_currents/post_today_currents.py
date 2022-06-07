@@ -8,7 +8,7 @@ from typing import Optional
 
 from utils.data import rename_cols
 from utils.noaa import retrieve_currents_table
-from utils.slack import post_message
+from utils.slack import NykpSlackChannels, post_message
 
 
 @dataclass
@@ -45,13 +45,13 @@ def format_currents_table(df: pd.DataFrame) -> str:
     return text
 
 
-def post_currents(station: Optional[Station] = None, date=None, time_period=None):
+def post_currents(channel: str, station: Optional[Station] = None, date=None, time_period=None):
     if station is None:
         station = DEFAULT_NYKP_STATION
     predictions = retrieve_currents_table(station_id=station.id, date=date, time_period=time_period)
     table_txt = format_currents_table(predictions.table)
-    post_txt = f"*New NOAA current predictions at {station.name}*\n{predictions.link}\n\n{table_txt}"
-    response = post_message(post_txt)
+    post_txt = f"<{predictions.link}|New NOAA current predictions at {station.name}>\n{table_txt}"
+    response = post_message(post_txt, channel=channel)
     return response
 
 
@@ -60,18 +60,30 @@ if __name__ == '__main__':
     parser.add_argument('--date', type=str, default=None)
     parser.add_argument('--station', type=str, default=None)
     parser.add_argument('--range', type=str, default=None)
+    parser.add_argument('--hudson', action='store_true')
+    parser.add_argument('--sessions', action='store_true')
+    parser.add_argument('--channel', type=str, default=None)
     parser.add_argument('--pdb', action='store_true')
     args = parser.parse_args()
 
     if args.pdb:
         pdb.set_trace()
 
+    if args.channel is not None:
+        channel = args.channel
+    elif args.hudson:
+        channel = NykpSlackChannels.hudson_conditions
+    elif args.sessions:
+        channel = NykpSlackChannels.hudson_sessions
+    else:
+        channel = NykpSlackChannels.test_python_api
+
     if args.station is not None:
         station = Station(id=args.station, name=f"Station {args.station}")
     else:
         station = None
     try:
-        post_currents(station=station, date=args.date, time_period=args.range)
-    except:
-        print_exception()
+        post_currents(channel, station=station, date=args.date, time_period=args.range)
+    except Exception as e:
+        print_exception(e)
         pdb.post_mortem()

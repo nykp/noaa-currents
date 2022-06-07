@@ -3,7 +3,11 @@ from slack_sdk.errors import SlackApiError
 
 from .secrets import get_slack_token
 
-CHANNEL = 'test-python-api'
+
+class NykpSlackChannels:
+    test_python_api = 'test-python-api'
+    hudson_conditions = 'hudson-conditions'
+    hudson_sessions = 'hudson-sessions'
 
 
 def get_client(token=None):
@@ -12,13 +16,14 @@ def get_client(token=None):
     return WebClient(token=token)
 
 
-def post_message(text: str, client=None, token=None):
+def post_message(text: str, channel=NykpSlackChannels.test_python_api, client=None, token=None):
     try:
         if client is None:
             client = get_client(token=token)
         return client.chat_postMessage(
-            channel="test-python-api",
-            text=text
+            channel=channel,
+            text=text,
+            unfurl_links=False,
         )
     except SlackApiError as e:
         # You will get a SlackApiError if "ok" is False
