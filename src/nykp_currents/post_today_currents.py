@@ -8,16 +8,19 @@ from typing import Optional
 
 from utils.data import rename_cols
 from utils.noaa import retrieve_currents_table
-from utils.slack import NykpSlackChannels, post_message
+from utils.slack import NykpSlackChannels, post_message, post_file
 
 
 @dataclass
 class Station:
     name: str
     id: str
+    depth: Optional[str] = None
 
 
-DEFAULT_NYKP_STATION = Station('Hudson River Entrance', 'NYH1927_13')
+HUDSON_RIVER_PIER_92 = Station('Hudson River, Pier 92', 'NYH1928', '6 feet')
+HUDSON_RIVER_ENTRANCE = Station('Hudson River Entrance', 'NYH1927_13')
+default_nykp_station = HUDSON_RIVER_PIER_92
 
 
 def knots_to_mph(knots) -> Optional[float]:
@@ -45,14 +48,16 @@ def format_currents_table(df: pd.DataFrame) -> str:
     return text
 
 
-def post_currents(channel: str, station: Optional[Station] = None, date=None, time_period=None):
+def post_currents(channel: str, station: Optional[Station] = None, date=None, time_period=None) -> None:
     if station is None:
-        station = DEFAULT_NYKP_STATION
+        station = default_nykp_station
     predictions = retrieve_currents_table(station_id=station.id, date=date, time_period=time_period)
     table_txt = format_currents_table(predictions.table)
-    post_txt = f"<{predictions.link}|New NOAA current predictions at {station.name}>\n{table_txt}"
-    response = post_message(post_txt, channel=channel)
-    return response
+    post_txt = (f"<{predictions.link}|New NOAA current predictions at {station.name} (depth: {station.depth})>"
+                f"\n{table_txt}")
+    response = post_message(post_txt, channel=channel, unfurl_links=False)
+    if predictions.plot_img_path:
+        file = post_file(predictions.plot_img_path, channel=channel)
 
 
 if __name__ == '__main__':

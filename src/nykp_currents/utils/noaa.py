@@ -8,6 +8,7 @@ import pandas as pd
 import pendulum
 
 CSV_URL_BASE = 'https://tidesandcurrents.noaa.gov/noaacurrents/DownloadPredictions?'
+CSV_DATE_FMT = 'YYYY-MM-DD'
 ONE_WEEK_STRS = ('w', '1w')
 TWO_DAY_STRS = ('48h', '2d')
 
@@ -16,6 +17,7 @@ TWO_DAY_STRS = ('48h', '2d')
 class Predictions:
     table: pd.DataFrame
     link: str
+    plot_img_path: Optional[str] = None
 
 
 def _starts_with_one_of(s: str, candidates: str | Sequence[str], ignore_case=True) -> bool:
@@ -46,12 +48,17 @@ def parse_time_period(r: None | int | str) -> int:
     return 1
 
 
-def retrieve_currents_table(station_id: str, date: Optional[str] = None, time_period=None, delete=True) -> Predictions:
+def retrieve_currents_table(station_id: str, date: Optional[str | pendulum.DateTime] = None, time_period=None,
+                            delete=True) -> Predictions:
     if date is None:
-        date = pendulum.today().format('YYYY-MM-DD')
+        date = pendulum.today()
+    elif isinstance(date, str):
+        date = pendulum.parse(date)
+
+    # Get csv of data
     time_period = parse_time_period(time_period)
     csv_url_params = {'fmt': 'csv',
-                      'd': date,
+                      'd': date.format(CSV_DATE_FMT),
                       'r': time_period,  # range {1 = 48 hrs, 2 = Weekly}
                       'tz': 'LST%2fLDT',
                       'id': station_id,

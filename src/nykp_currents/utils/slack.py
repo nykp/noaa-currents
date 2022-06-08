@@ -1,7 +1,7 @@
-from slack_sdk import WebClient
+import slack_sdk
 from slack_sdk.errors import SlackApiError
 
-from .secrets import get_slack_token
+from .secrets import get_slack_bot_token, get_slack_user_token
 
 
 class NykpSlackChannels:
@@ -10,22 +10,32 @@ class NykpSlackChannels:
     hudson_sessions = 'hudson-sessions'
 
 
-def get_client(token=None):
+def get_client(token=None, user=False):
     if token is None:
-        token = get_slack_token()
-    return WebClient(token=token)
+        if user:
+            token = get_slack_user_token()
+        else:
+            token = get_slack_bot_token()
+    return slack_sdk.WebClient(token=token)
 
 
-def post_message(text: str, channel=NykpSlackChannels.test_python_api, client=None, token=None):
+def post_message(text: str, channel=NykpSlackChannels.test_python_api, client=None, token=None, **kwargs):
     try:
         if client is None:
             client = get_client(token=token)
         return client.chat_postMessage(
             channel=channel,
             text=text,
-            unfurl_links=False,
+            **kwargs
         )
     except SlackApiError as e:
         # You will get a SlackApiError if "ok" is False
         print(f"SlackApiError: {e.response['error']}")  # something like 'invalid_auth', 'channel_not_found'
         raise
+
+
+def post_file(path: str, channel: str, client=None, token=None) -> dict:
+    if client is None:
+        client = get_client(token=token)
+    resp = client.files_upload(file=path, channels=channel)
+    return resp.data['file']
