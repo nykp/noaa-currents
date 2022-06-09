@@ -34,7 +34,11 @@ def knots_to_mph(knots) -> Optional[float]:
         return np.nan
 
 
-def format_currents_table(df: pd.DataFrame) -> str:
+def format_currents_table(df: pd.DataFrame, date=None) -> str:
+    if date is None:
+        date = pendulum.today()
+    if not isinstance(date, str):
+        date = date.format('YYYY-MM-DD')
     col_renames = {'Date_Time (LST/LDT)': 'datetime',
                    'Event': 'stage',
                    'Speed (knots)': 'knots'}
@@ -43,7 +47,7 @@ def format_currents_table(df: pd.DataFrame) -> str:
     df['time'] = df['datetime'].map(lambda dts: ' '.join(dts.split(' ')[1:]))
     df['mph'] = df['knots'].map(knots_to_mph)
     text = ''
-    today_df = df[df['date'] == pendulum.today().format('YYYY-MM-DD')]
+    today_df = df[df['date'] == date]
     for _, row in today_df.iterrows():
         text += f"{row['time']}  "
         text += row['stage']
@@ -53,13 +57,17 @@ def format_currents_table(df: pd.DataFrame) -> str:
     return text.rstrip()
 
 
-def post_currents(channel: str, station: Optional[Station] = None, date=None, time_period=None) -> None:
+def post_currents(channel: str, station: Optional[Station] = None, date=None, time_period=None, days=1) -> None:
     if station is None:
         station = default_nykp_station
     predictions = retrieve_currents_table(station_id=station.id, date=date, time_period=time_period)
-    table_txt = format_currents_table(predictions.table)
-    post_txt = (f"<{predictions.link}|Today's NOAA current predictions at {station.name} (depth: {station.depth})>"
-                f"\n{table_txt}")
+    dates = sorted(predictions.table['Date_Time (LST/LDT)'].map(lambda dt: dt.split(' ')[0]).unique())
+    dates = dates[:days]
+    post_txt = f"<{predictions.link}|NOAA current predictions at {station.name} (depth: {station.depth})>\n"
+    for d in dates:
+        table_txt = format_currents_table(predictions.table, date=d)
+        date_str = pendulum.parse(d).format('dddd, MMMM D, YYYY')
+        post_txt += f"*{date_str}*\n{table_txt}"
     response = post_message(post_txt, channel=channel, unfurl_links=False)
     if predictions.plot_img_path:
         file = post_file(predictions.plot_img_path, channel=channel)
