@@ -1,15 +1,18 @@
+import pdb
 from argparse import ArgumentParser
 from dataclasses import dataclass
-import numpy as np
-import pandas as pd
-import pdb
+from datetime import datetime, timedelta
 from traceback import print_exception
 from typing import Optional
 
+import numpy as np
+import pandas as pd
 import pendulum
+import pytz
 
 from utils.data import rename_cols
 from utils.noaa import retrieve_currents_table
+from utils.notify_nyc import get_waterbody_advisories
 from utils.slack import NykpSlackChannels, post_message, post_file
 
 
@@ -73,14 +76,35 @@ def post_currents(channel: str, station: Optional[Station] = None, date=None, ti
         file = post_file(predictions.plot_img_path, channel=channel)
 
 
+def post_waterbody_advisories(
+        channel: str,
+        start_time: Optional[datetime | str] = None,
+        end_time: Optional[datetime | str] = None,
+        days=1
+):
+    if isinstance(end_time, str):
+        end_time = pendulum.parse(end_time)
+    elif end_time is None:
+        end_time = datetime.now(tz=pytz.timezone('America/New_York'))
+
+    if isinstance(start_time, str):
+        start_time = pendulum.parse(start_time)
+    elif start_time is None:
+        start_time = end_time - timedelta(days=days)
+
+    advisories = get_waterbody_advisories(start_dt=start_time, end_dt=end_time)
+    for advisory in advisories:
+        response = post_message(advisory.print(), channel=channel)
+
+
+
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--date', type=str, default=None)
     parser.add_argument('--station', type=str, default=None)
     parser.add_argument('--range', type=str, default=None)
-    parser.add_argument('--hudson', action='store_true')
-    parser.add_argument('--sessions', action='store_true')
     parser.add_argument('--channel', type=str, default=None)
+    parser.add_argument('--days', type=int, default=1)
     parser.add_argument('--pdb', action='store_true')
     args = parser.parse_args()
 
@@ -89,10 +113,6 @@ if __name__ == '__main__':
 
     if args.channel is not None:
         channel = args.channel
-    elif args.hudson:
-        channel = NykpSlackChannels.hudson_conditions
-    elif args.sessions:
-        channel = NykpSlackChannels.hudson_sessions
     else:
         channel = NykpSlackChannels.test_python_api
 
@@ -100,8 +120,10 @@ if __name__ == '__main__':
         station = Station(id=args.station, name=f"Station {args.station}")
     else:
         station = None
+
     try:
         post_currents(channel, station=station, date=args.date, time_period=args.range)
+        post_waterbody_advisories(channel, days=args.days)
     except Exception as e:
         print_exception(e)
         pdb.post_mortem()
