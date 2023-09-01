@@ -34,8 +34,8 @@ def post_message(text: str, channel=NykpSlackChannels.test_python_api, client=No
         raise
 
 
-def post_file(path: str, channel: str, client=None, token=None) -> dict:
+def post_file(path: str, channel: str, comment=None, client=None, token=None) -> dict:
     if client is None:
         client = get_client(token=token)
-    resp = client.files_upload(file=path, channels=channel)
+    resp = client.files_upload(file=path, channels=channel, initial_comment=comment)
     return resp.data['file']

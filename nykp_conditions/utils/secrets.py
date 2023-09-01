@@ -1,6 +1,6 @@
 import os
 
-SECRETS_DIR = os.path.abspath(os.path.join(__file__, '../../../../.secrets'))
+SECRETS_DIR = os.path.abspath(os.path.join(__file__, '../../../.secrets'))
 SLACK_BOT_TOKEN_FILE = os.path.join(SECRETS_DIR, 'slack_app_bot_token')
 SLACK_USER_TOKEN_FILE = os.path.join(SECRETS_DIR, 'slack_app_user_token')
 
