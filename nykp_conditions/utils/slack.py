@@ -1,5 +1,8 @@
+from typing import Optional
+
 import slack_sdk
 from slack_sdk.errors import SlackApiError
+from slack_sdk.models.attachments import Attachment
 
 from .secrets import get_slack_bot_token, get_slack_user_token
 
@@ -19,7 +22,7 @@ def get_client(token=None, user=False):
     return slack_sdk.WebClient(token=token)
 
 
-def post_message(text: str, channel=NykpSlackChannels.test_python_api, client=None, token=None, **kwargs):
+def post_message(text: Optional[str], channel=NykpSlackChannels.test_python_api, client=None, token=None, **kwargs):
     try:
         if client is None:
             client = get_client(token=token)
@@ -32,6 +35,16 @@ def post_message(text: str, channel=NykpSlackChannels.test_python_api, client=No
         # You will get a SlackApiError if "ok" is False
         print(f"SlackApiError: {e.response['error']}")  # something like 'invalid_auth', 'channel_not_found'
         raise
+
+
+def post_text_attachment(
+        text: str, pretext: Optional[str] = None, channel=NykpSlackChannels.test_python_api, client=None,
+        token=None, **kwargs
+):
+    bold_pretext = f"*{pretext}*"
+    attachment = Attachment(text=text)
+    return post_message(text=bold_pretext, channel=channel, client=client, token=token, attachments=[attachment],
+                        **kwargs)
 
 
 def post_file(path: str, channel: str, comment=None, client=None, token=None) -> dict:

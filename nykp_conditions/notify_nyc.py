@@ -2,14 +2,14 @@ from argparse import ArgumentParser
 
 from dataclasses import dataclass, fields
 from datetime import datetime, timedelta
-from typing import Optional, Self
+from typing import List, Optional, Self
 
 import feedparser
 import pendulum
 import pytz
 
 from utils.scripts import try_main
-from utils.slack import NykpSlackChannels, post_message
+from utils.slack import NykpSlackChannels, post_text_attachment
 
 
 NOTIFY_NYC_URL = 'https://a858-nycnotify.nyc.gov/RSS/NotifyNYC?lang=en'
@@ -17,6 +17,10 @@ WATERBODY_ADVISORY = 'Waterbody Advisory'
 ALERTS_FIELD = 'entries'
 NOTIFY_DATE_FMT = '%m/%d/%Y %H:%M:%S'
 NOTIFY_NYC_TZ = pytz.timezone('America/New_York')
+
+
+def find_links(s: str) -> List[str]:
+    return [i for i in s.split() if i.startswith('http://') or i.startswith('https://')]
 
 
 @dataclass
@@ -37,9 +41,6 @@ class NotifyAlert:
         field_names = [f.name for f in fields(cls)]
         kws = {field: entry.get(field) for field in field_names}
         return cls(**kws)
-
-    def print(self) -> str:
-        return f"{self.published} -- {self.title}\n\n{self.summary}"
 
 
 def get_waterbody_advisories(
@@ -80,7 +81,11 @@ def post_waterbody_advisories(
 
     advisories = get_waterbody_advisories(start_dt=start_time, end_dt=end_time)
     for advisory in advisories:
-        response = post_message(advisory.print(), channel=channel)
+        pretext = f"{advisory.title} ({advisory.published})"
+        links = find_links(advisory.summary)
+        if links:
+            pretext += '\nLinks:\n' + '\n'.join(links) 
+        response = post_text_attachment(pretext=pretext, text=advisory.summary, channel=channel)
 
 
 """----------------------------------------------------------------------------
