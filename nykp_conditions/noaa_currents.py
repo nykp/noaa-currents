@@ -93,7 +93,7 @@ class Station:
     depth: Optional[str] = None
 
 
-HUDSON_RIVER_PIER_92 = Station('Hudson River, Pier 92', 'NYH1928', '6 feet')
+HUDSON_RIVER_PIER_92 = Station('Hudson River, Pier 92', 'NYH1928_12', '6 feet')
 HUDSON_RIVER_ENTRANCE = Station('Hudson River Entrance', 'NYH1927_13')
 default_nykp_station = HUDSON_RIVER_PIER_92
 
